@@ -202,7 +202,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Dados diários de clima para o gráfico (2026)
+    // Dados diários de clima (2026 e 2025 para comparação dia a dia)
     const climaDiario = climate2026 ? {
       time:    climate2026.time    || [],
       tempMax: climate2026.temperature_2m_max || [],
@@ -210,7 +210,14 @@ export default async function handler(req, res) {
       precip:  climate2026.precipitation_sum  || [],
     } : null;
 
-    res.json({ semanal2026, semanal2025, clima, climaDiario, updatedAt: new Date().toISOString() });
+    const climaDiario2025 = climate2025 ? {
+      time:    climate2025.time    || [],
+      tempMax: climate2025.temperature_2m_max || [],
+      tempMin: climate2025.temperature_2m_min || [],
+      precip:  climate2025.precipitation_sum  || [],
+    } : null;
+
+    res.json({ semanal2026, semanal2025, clima, climaDiario, climaDiario2025, updatedAt: new Date().toISOString() });
 
   } catch (err) {
     console.error('[dados.js]', err);
