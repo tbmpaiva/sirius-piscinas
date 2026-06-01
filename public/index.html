@@ -334,7 +334,7 @@ const fmtNum = v => new Intl.NumberFormat('pt-PT', {
 }).format(v || 0);
 
 const fmtPct = v => (v || 0).toFixed(1).replace('.', ',') + '%';
-const fmtX   = v => (v || 0).toFixed(2).replace('.', ',') + 'x';
+const fmtX   = v => { const n = parseFloat(v) || 0; return n.toFixed(1).replace('.', ',') + 'x'; };
 
 function fmtDate(iso) {
   if (!iso) return '';
@@ -728,7 +728,14 @@ function initCharts() {
         legend: legend(), title: titlePlugin('ROAS'),
         tooltip: { ...tooltip(), callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtX(ctx.parsed.y)}` } },
       },
-      scales: scalesXY(v => fmtX(v)),
+      scales: {
+        x: { ticks: { color: TICK, font: FONT }, grid: { color: GRID } },
+        y: {
+          ticks: { color: TICK, font: FONT, callback: (v) => fmtX(v) },
+          grid: { color: GRID },
+          beginAtZero: false,
+        },
+      },
     },
   });
 
