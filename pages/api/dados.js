@@ -43,7 +43,8 @@ function parseEur(v) {
 
 function parseNum(v) {
   if (v === null || v === undefined || v === '') return 0;
-  const s = String(v).trim();
+  // Remove espaços usados como separador de milhares (ex: "1 372" → "1372")
+  const s = String(v).trim().replace(/[\s\u00a0]/g, '');
   if (s.includes(',') && s.includes('.')) {
     return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
   } else if (s.includes(',')) {
