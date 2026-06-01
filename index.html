@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sirius Park · Piscinas 2026</title>
+  <link rel="icon" href="https://siriuspark.pt/wp-content/uploads/2023/05/cropped-favicon-sirius-park-1-192x192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0b0d11;
+      --bg2:     #13161d;
+      --bg3:     #1a1e28;
+      --accent:  #e8ff47;
+      --meta:    #4f8cff;
+      --google:  #fbbf24;
+      --text:    #f0f2f7;
+      --muted:   #6b7280;
+      --border:  #1f2535;
+      --green:   #22c55e;
+      --red:     #ef4444;
+      --teal:    #2dd4bf;
+      --water:   #06b6d4;
+      --sun:     #f97316;
+      --r:       12px;
+      --r-sm:    8px;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Topbar ────────────────────────────────────────────────────────── */
+    #topbar {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 0 20px; height: 56px;
+      background: rgba(11,13,17,0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .favicon-img { width: 24px; height: 24px; border-radius: 50%; }
+    .brand-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; }
+    .brand-div { color: var(--border); }
+    .brand-sub { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 13px; color: var(--accent); }
+    .live-badge {
+      font-size: 10px; color: var(--green);
+      background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2);
+      padding: 2px 8px; border-radius: 20px; letter-spacing: 0.05em;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    #weekSelector {
+      background: var(--bg3); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      padding: 6px 10px; font-family: 'DM Mono', monospace; font-size: 12px;
+      cursor: pointer; outline: none; max-width: 230px;
+    }
+    #weekSelector:focus { border-color: var(--accent); }
+    #refreshBtn {
+      background: var(--bg3); color: var(--muted);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      padding: 6px 11px; font-size: 15px; cursor: pointer;
+      transition: color .2s, border-color .2s;
+    }
+    #refreshBtn:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* ── Season Bar ────────────────────────────────────────────────────── */
+    #seasonBar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 7px 20px;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+    }
+    .season-label { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+    .progress-track {
+      flex: 1; height: 3px; background: var(--bg3); border-radius: 2px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--water) 0%, var(--accent) 100%);
+      border-radius: 2px; transition: width .8s ease;
+      width: 0%;
+    }
+    .season-pct { font-size: 11px; color: var(--accent); font-weight: 500; flex-shrink: 0; }
+
+    /* ── Main ──────────────────────────────────────────────────────────── */
+    #main { max-width: 1400px; margin: 0 auto; padding: 24px 20px; }
+
+    /* ── Loading / Error ───────────────────────────────────────────────── */
+    #loadingState {
+      display: flex; align-items: center; justify-content: center;
+      height: 50vh; color: var(--muted); font-size: 13px; gap: 10px;
+    }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-state {
+      padding: 40px; text-align: center; color: var(--red); font-size: 13px;
+    }
+
+    /* ── Section ───────────────────────────────────────────────────────── */
+    .section { margin-bottom: 32px; }
+    .section-header {
+      display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px;
+    }
+    .section-header h2 {
+      font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em; color: var(--text);
+    }
+    .section-meta { font-size: 11px; color: var(--muted); }
+
+    /* ── KPI Grid ──────────────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .kpi-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 16px;
+      display: flex; flex-direction: column; gap: 5px;
+      transition: border-color .2s;
+    }
+    .kpi-card:hover { border-color: #2a3045; }
+    .kpi-label {
+      font-size: 10px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .kpi-value {
+      font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700;
+      color: var(--text); line-height: 1.15;
+    }
+    .kpi-split { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 1px; }
+    .kpi-split-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .dot-meta { background: var(--meta); }
+    .dot-google { background: var(--google); }
+    .kpi-deltas { display: flex; flex-direction: column; gap: 3px; margin-top: 5px; }
+    .delta, .delta-y25 {
+      font-size: 10px; font-weight: 500;
+      padding: 2px 6px; border-radius: 4px;
+      display: inline-flex; align-items: center; gap: 3px;
+      width: fit-content;
+    }
+    .delta.pos    { color: var(--green); background: rgba(34,197,94,0.09); }
+    .delta.neg    { color: var(--red);   background: rgba(239,68,68,0.09); }
+    .delta.neutral { color: var(--muted); }
+    .delta-y25.pos  { color: var(--teal); background: rgba(45,212,191,0.09); }
+    .delta-y25.neg  { color: #f59e0b;     background: rgba(245,158,11,0.09); }
+    .delta-y25.neutral { color: var(--muted); }
+
+    /* ── Clima Grid ────────────────────────────────────────────────────── */
+    .clima-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .clima-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 20px 16px;
+      display: flex; flex-direction: column; gap: 7px;
+      position: relative; overflow: hidden;
+    }
+    .clima-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .clima-card.hot::before   { background: var(--sun); }
+    .clima-card.cold::before  { background: var(--water); }
+    .clima-card.sun::before   { background: var(--google); }
+    .clima-card.rain::before  { background: var(--meta); }
+    .clima-icon { font-size: 22px; line-height: 1; }
+    .clima-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .clima-value { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 700; }
+    .clima-delta { font-size: 10px; }
+
+    /* ── Epoch Grid ────────────────────────────────────────────────────── */
+    .epoch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .epoch-card {
+      background: linear-gradient(135deg, var(--bg2) 0%, #0f1218 100%);
+      border: 1px solid var(--border); border-radius: var(--r);
+      padding: 16px; display: flex; flex-direction: column; gap: 5px;
+    }
+    .epoch-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .epoch-value { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; color: var(--accent); }
+
+    /* ── Charts ────────────────────────────────────────────────────────── */
+    .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .chart-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 16px;
+      height: 260px; position: relative;
+    }
+    .chart-card canvas { width: 100% !important; height: 100% !important; }
+
+    /* ── Footer ────────────────────────────────────────────────────────── */
+    #footer {
+      text-align: center; padding: 20px; font-size: 11px; color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Responsive ────────────────────────────────────────────────────── */
+    @media (max-width: 1100px) {
+      .kpi-grid, .clima-grid, .epoch-grid { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      #topbar { padding: 0 12px; }
+      .brand-div, .brand-sub { display: none; }
+      #main { padding: 12px; }
+      .kpi-grid, .clima-grid, .epoch-grid { grid-template-columns: repeat(2, 1fr); }
+      .kpi-value { font-size: 18px; }
+      .clima-value { font-size: 22px; }
+      .epoch-value { font-size: 18px; }
+      #seasonBar { display: none; }
+      #weekSelector { max-width: 170px; font-size: 11px; }
+    }
+    @media (max-width: 400px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Topbar ──────────────────────────────────────────────────────────────── -->
+<header id="topbar">
+  <div class="topbar-left">
+    <img class="favicon-img" src="https://siriuspark.pt/wp-content/uploads/2023/05/cropped-favicon-sirius-park-1-192x192.png" alt="" />
+    <span class="brand-name">Sirius Park</span>
+    <span class="brand-div">·</span>
+    <span class="brand-sub">Piscinas</span>
+    <span class="live-badge">● Live</span>
+  </div>
+  <div class="topbar-right">
+    <select id="weekSelector" onchange="onWeekChange()"></select>
+    <button id="refreshBtn" onclick="loadData(true)" title="Forçar actualização">↻</button>
+  </div>
+</header>
+
+<!-- ── Season Progress ─────────────────────────────────────────────────────── -->
+<div id="seasonBar">
+  <span class="season-label" id="seasonLabel">Época 2026</span>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <span class="season-pct" id="seasonPct">0%</span>
+</div>
+
+<!-- ── Main ───────────────────────────────────────────────────────────────── -->
+<main id="main">
+  <div id="loadingState"><div class="spinner"></div> A carregar dados…</div>
+  <div id="errorState" style="display:none" class="error-state"></div>
+
+  <div id="dashContent" style="display:none">
+
+    <!-- KPIs Semana -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Performance da Semana</h2>
+        <span class="section-meta" id="weekLabel">—</span>
+      </div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+    </section>
+
+    <!-- Clima -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Clima — Montijo</h2>
+        <span class="section-meta" id="climaLabel">—</span>
+      </div>
+      <div class="clima-grid" id="climaGrid"></div>
+    </section>
+
+    <!-- Época Acumulado -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Acumulado da Época</h2>
+        <span class="section-meta" id="epochLabel">—</span>
+      </div>
+      <div class="epoch-grid" id="epochGrid"></div>
+    </section>
+
+    <!-- Gráficos -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Evolução Semanal</h2>
+        <span class="section-meta">2026 vs 2025</span>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card"><canvas id="chartInv"></canvas></div>
+        <div class="chart-card"><canvas id="chartVendas"></canvas></div>
+        <div class="chart-card"><canvas id="chartRoas"></canvas></div>
+        <div class="chart-card"><canvas id="chartTraf"></canvas></div>
+        <div class="chart-card"><canvas id="chartTxConv"></canvas></div>
+        <div class="chart-card"><canvas id="chartClima"></canvas></div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<!-- ── Footer ─────────────────────────────────────────────────────────────── -->
+<footer id="footer">
+  Última actualização: <span id="updatedAt">—</span> &nbsp;·&nbsp; Sirius Park Piscinas 2026 &nbsp;·&nbsp; RALP Media
+</footer>
+
+<script>
+'use strict';
+
+// ─── Constantes ───────────────────────────────────────────────────────────────
+const SEASON_START = 22;
+const SEASON_END   = 36;
+
+// ─── Estado global ────────────────────────────────────────────────────────────
+let appData = null;
+let charts  = {};
+
+// ─── Formatadores ─────────────────────────────────────────────────────────────
+const fmtEur = v => new Intl.NumberFormat('pt-PT', {
+  style: 'currency', currency: 'EUR', maximumFractionDigits: 0
+}).format(v || 0);
+
+const fmtNum = v => new Intl.NumberFormat('pt-PT', {
+  maximumFractionDigits: 0
+}).format(v || 0);
+
+const fmtPct = v => (v || 0).toFixed(1).replace('.', ',') + '%';
+const fmtX   = v => (v || 0).toFixed(2).replace('.', ',') + 'x';
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  return new Date(iso + 'T12:00:00').toLocaleDateString('pt-PT', {
+    day: 'numeric', month: 'short'
+  });
+}
+
+function pctDiff(cur, prev) {
+  if (!prev || prev === 0 || cur === null || cur === undefined) return null;
+  return ((cur - prev) / Math.abs(prev)) * 100;
+}
+
+// ─── Delta HTML ───────────────────────────────────────────────────────────────
+function deltaHtml(pct, label, invert = false, isY25 = false) {
+  if (pct === null || pct === undefined || !isFinite(pct)) {
+    return `<span class="${isY25 ? 'delta-y25' : 'delta'} neutral">— ${label}</span>`;
+  }
+  const positive = invert ? pct <= 0 : pct >= 0;
+  const sign     = pct >= 0 ? '▲' : '▼';
+  const cls      = isY25
+    ? `delta-y25 ${positive ? 'pos' : 'neg'}`
+    : `delta ${positive ? 'pos' : 'neg'}`;
+  return `<span class="${cls}">${sign} ${Math.abs(pct).toFixed(1).replace('.', ',')}% ${label}</span>`;
+}
+
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
+function kpiCard({ label, value, splitMeta, splitGoogle, delta1, delta2, invertDelta }) {
+  const splitHtml = (splitMeta !== undefined) ? `
+    <div class="kpi-split">
+      <span class="kpi-split-item"><span class="dot dot-meta"></span>${splitMeta}</span>
+      <span class="kpi-split-item"><span class="dot dot-google"></span>${splitGoogle}</span>
+    </div>` : '';
+  return `
+    <div class="kpi-card">
+      <span class="kpi-label">${label}</span>
+      <span class="kpi-value">${value}</span>
+      ${splitHtml}
+      <div class="kpi-deltas">
+        ${deltaHtml(delta1, 'sem ant.', invertDelta, false)}
+        ${deltaHtml(delta2, 'vs 2025',  invertDelta, true)}
+      </div>
+    </div>`;
+}
+
+// ─── Clima Card ───────────────────────────────────────────────────────────────
+function climaCard({ icon, label, value, unit, delta2025, colorClass }) {
+  const dHtml = delta2025 !== null && delta2025 !== undefined
+    ? deltaHtml(delta2025, 'vs 2025', false, true)
+    : `<span class="delta-y25 neutral">— vs 2025</span>`;
+  const displayValue = value !== null && value !== undefined
+    ? `<span class="clima-value">${value}${unit}</span>`
+    : `<span class="clima-value" style="font-size:16px;color:var(--muted)">Sem dados</span>`;
+  return `
+    <div class="clima-card ${colorClass}">
+      <span class="clima-icon">${icon}</span>
+      <span class="clima-label">${label}</span>
+      ${displayValue}
+      <span class="clima-delta">${dHtml}</span>
+    </div>`;
+}
+
+// ─── Epoch Card ───────────────────────────────────────────────────────────────
+function epochCard({ label, value, delta2025 }) {
+  return `
+    <div class="epoch-card">
+      <span class="epoch-label">${label}</span>
+      <span class="epoch-value">${value}</span>
+      <div class="kpi-deltas">${deltaHtml(delta2025, 'vs época 2025', false, true)}</div>
+    </div>`;
+}
+
+// ─── Season Progress ──────────────────────────────────────────────────────────
+function updateSeasonProgress(weekNum) {
+  const total = SEASON_END - SEASON_START + 1;
+  const done  = Math.max(0, Math.min(total, weekNum - SEASON_START + 1));
+  const pct   = Math.round((done / total) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('seasonPct').textContent    = pct + '%';
+  document.getElementById('seasonLabel').textContent  = `Época 2026 · Semana ${done} de ${total}`;
+}
+
+// ─── Render KPIs ──────────────────────────────────────────────────────────────
+function renderKPIs(w26, prev26, w25) {
+  const el = document.getElementById('kpiGrid');
+  if (!w26) {
+    el.innerHTML = '<p style="color:var(--muted);font-size:12px;padding:10px">Sem dados para esta semana.</p>';
+    return;
+  }
+  const cards = [
+    {
+      label: 'Investimento Total', value: fmtEur(w26.inv),
+      splitMeta: fmtEur(w26.iM), splitGoogle: fmtEur(w26.iG),
+      delta1: pctDiff(w26.inv, prev26?.inv), delta2: pctDiff(w26.inv, w25?.inv),
+      invertDelta: false,
+    },
+    {
+      label: 'Bilhetes Vendidos', value: fmtNum(w26.nvT),
+      splitMeta: fmtNum(w26.nvM), splitGoogle: fmtNum(w26.nvG),
+      delta1: pctDiff(w26.nvT, prev26?.nvT), delta2: pctDiff(w26.nvT, w25?.nvT),
+      invertDelta: false,
+    },
+    {
+      label: 'Receita Total', value: fmtEur(w26.vT),
+      splitMeta: fmtEur(w26.vM), splitGoogle: fmtEur(w26.vG),
+      delta1: pctDiff(w26.vT, prev26?.vT), delta2: pctDiff(w26.vT, w25?.vT),
+      invertDelta: false,
+    },
+    {
+      label: 'Ticket Médio', value: fmtEur(w26.ticketMedio),
+      delta1: pctDiff(w26.ticketMedio, prev26?.ticketMedio),
+      delta2: pctDiff(w26.ticketMedio, w25?.ticketMedio),
+      invertDelta: false,
+    },
+    {
+      label: 'ROAS', value: fmtX(w26.roas),
+      delta1: pctDiff(w26.roas, prev26?.roas), delta2: pctDiff(w26.roas, w25?.roas),
+      invertDelta: false,
+    },
+    {
+      label: 'Tráfego Homepage', value: fmtNum(w26.trafHP),
+      delta1: pctDiff(w26.trafHP, prev26?.trafHP), delta2: pctDiff(w26.trafHP, w25?.trafHP),
+      invertDelta: false,
+    },
+    {
+      label: 'Taxa de Conversão', value: fmtPct(w26.txConv),
+      delta1: pctDiff(w26.txConv, prev26?.txConv), delta2: pctDiff(w26.txConv, w25?.txConv),
+      invertDelta: false,
+    },
+    {
+      label: 'Custo por Bilhete', value: fmtEur(w26.cpb),
+      delta1: pctDiff(w26.cpb, prev26?.cpb), delta2: pctDiff(w26.cpb, w25?.cpb),
+      invertDelta: true,
+    },
+  ];
+  el.innerHTML = cards.map(kpiCard).join('');
+}
+
+// ─── Render Clima ─────────────────────────────────────────────────────────────
+function renderClima(c26, c25, rangeLabel) {
+  document.getElementById('climaLabel').textContent = rangeLabel || '—';
+  const el = document.getElementById('climaGrid');
+  if (!c26) {
+    el.innerHTML = `<div class="clima-card hot" style="grid-column:1/-1;align-items:center;text-align:center">
+      <span style="color:var(--muted);font-size:12px">Dados de clima não disponíveis para esta semana.</span></div>`;
+    return;
+  }
+  const cards = [
+    {
+      icon: '🌡️', label: 'Temperatura Máxima', colorClass: 'hot',
+      value: c26.tempMax, unit: '°C',
+      delta2025: c26.tempMax !== null && c25?.tempMax != null ? pctDiff(c26.tempMax, c25.tempMax) : null,
+    },
+    {
+      icon: '🌊', label: 'Temperatura Mínima', colorClass: 'cold',
+      value: c26.tempMin, unit: '°C',
+      delta2025: c26.tempMin !== null && c25?.tempMin != null ? pctDiff(c26.tempMin, c25.tempMin) : null,
+    },
+    {
+      icon: '☀️', label: 'Horas de Sol', colorClass: 'sun',
+      value: c26.sol, unit: 'h',
+      delta2025: c26.sol !== null && c25?.sol != null ? pctDiff(c26.sol, c25.sol) : null,
+    },
+    {
+      icon: '🌧️', label: 'Precipitação', colorClass: 'rain',
+      value: c26.precip, unit: ' mm',
+      delta2025: c26.precip !== null && c25?.precip != null ? pctDiff(c26.precip, c25.precip) : null,
+    },
+  ];
+  el.innerHTML = cards.map(climaCard).join('');
+}
+
+// ─── Render Época ─────────────────────────────────────────────────────────────
+function calcTotals(data, upToWeek) {
+  return data
+    .filter(w => w.s >= SEASON_START && w.s <= upToWeek)
+    .reduce((a, w) => ({
+      inv:  a.inv  + w.inv,
+      nvT:  a.nvT  + w.nvT,
+      vT:   a.vT   + w.vT,
+    }), { inv: 0, nvT: 0, vT: 0 });
+}
+
+function renderEpoch(weekNum) {
+  const { semanal2026, semanal2025 } = appData;
+  const t26 = calcTotals(semanal2026, weekNum);
+  const t25 = calcTotals(semanal2025, weekNum);
+  const roas26 = t26.inv > 0 ? t26.vT / t26.inv : 0;
+  const roas25 = t25.inv > 0 ? t25.vT / t25.inv : 0;
+
+  document.getElementById('epochLabel').textContent =
+    `Semanas ${SEASON_START}–${weekNum} · comparado com o mesmo período de 2025`;
+
+  const cards = [
+    { label: 'Investimento Total', value: fmtEur(t26.inv),  delta2025: pctDiff(t26.inv,  t25.inv) },
+    { label: 'Bilhetes Vendidos',  value: fmtNum(t26.nvT),  delta2025: pctDiff(t26.nvT,  t25.nvT) },
+    { label: 'Receita Total',      value: fmtEur(t26.vT),   delta2025: pctDiff(t26.vT,   t25.vT) },
+    { label: 'ROAS Médio',         value: fmtX(roas26),     delta2025: pctDiff(roas26,   roas25) },
+  ];
+  document.getElementById('epochGrid').innerHTML = cards.map(epochCard).join('');
+}
+
+// ─── Chart Helpers ────────────────────────────────────────────────────────────
+const FONT   = { family: 'DM Mono', size: 10 };
+const GRID   = '#1f2535';
+const TICK   = '#6b7280';
+
+function tooltip() {
+  return {
+    backgroundColor: '#1a1e28', titleColor: '#e8ff47', bodyColor: '#f0f2f7',
+    borderColor: '#2a3045', borderWidth: 1,
+    titleFont: { family: 'Syne', size: 11 }, bodyFont: FONT,
+  };
+}
+
+function legend() {
+  return {
+    position: 'top',
+    labels: { color: '#9ca3af', font: FONT, boxWidth: 10, padding: 10 },
+  };
+}
+
+function titlePlugin(text) {
+  return { display: true, text, color: '#f0f2f7', font: { family: 'Syne', size: 12, weight: '600' } };
+}
+
+function scalesXY(yFmt, opts = {}) {
+  const base = {
+    x: { ticks: { color: TICK, font: FONT }, grid: { color: GRID } },
+    y: {
+      ticks: { color: TICK, font: FONT, callback: yFmt },
+      grid: { color: GRID }, beginAtZero: true,
+    },
+  };
+  if (opts.y2Fmt) {
+    base.y1 = {
+      position: 'right',
+      ticks: { color: TICK, font: FONT, callback: opts.y2Fmt },
+      grid: { drawOnChartArea: false }, beginAtZero: true,
+    };
+  }
+  if (opts.stacked) { base.x.stacked = true; base.y.stacked = true; }
+  return base;
+}
+
+// ─── Init Charts ─────────────────────────────────────────────────────────────
+function initCharts() {
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+
+  const { semanal2026, semanal2025, clima } = appData;
+  const d26    = semanal2026;
+  const labels = d26.map(w => `S${w.s}`);
+  const m25    = (field) => d26.map(w => semanal2025.find(x => x.s === w.s)?.[field] ?? null);
+
+  const sharedOpts = { responsive: true, maintainAspectRatio: false };
+
+  // 1. Investimento
+  charts.inv = new Chart(document.getElementById('chartInv'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Meta 2026',    data: d26.map(w => w.iM), backgroundColor: 'rgba(79,140,255,0.8)', stack: 's26', borderRadius: 3 },
+        { label: 'Google 2026',  data: d26.map(w => w.iG), backgroundColor: 'rgba(251,191,36,0.8)',  stack: 's26', borderRadius: 3 },
+        { label: 'Total 2025',   type: 'line', data: m25('inv'),
+          borderColor: 'rgba(107,114,128,0.55)', backgroundColor: 'transparent',
+          borderDash: [5,3], pointRadius: 2, tension: 0.3 },
+      ],
+    },
+    options: {
+      ...sharedOpts,
+      plugins: { legend: legend(), title: titlePlugin('Investimento Semanal (€)'), tooltip: tooltip() },
+      scales: scalesXY(v => `€${(v/1000).toFixed(0)}k`, { stacked: true }),
+    },
+  });
+
+  // 2. Bilhetes & Receita
+  charts.vendas = new Chart(document.getElementById('chartVendas'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: '#Bilhetes 2026', data: d26.map(w => w.nvT), backgroundColor: 'rgba(232,255,71,0.7)', borderRadius: 3, yAxisID: 'y' },
+        { label: '#Bilhetes 2025', data: m25('nvT'), backgroundColor: 'rgba(107,114,128,0.4)', borderRadius: 3, yAxisID: 'y' },
+        { label: 'Receita 2026 (€)', type: 'line', data: d26.map(w => w.vT),
+          borderColor: 'rgba(6,182,212,0.85)', backgroundColor: 'rgba(6,182,212,0.07)',
+          fill: false, pointRadius: 3, tension: 0.3, yAxisID: 'y1' },
+      ],
+    },
+    options: {
+      ...sharedOpts,
+      plugins: { legend: legend(), title: titlePlugin('Bilhetes & Receita'), tooltip: tooltip() },
+      scales: scalesXY(v => fmtNum(v), { y2Fmt: v => `€${(v/1000).toFixed(0)}k` }),
+    },
+  });
+
+  // 3. ROAS
+  charts.roas = new Chart(document.getElementById('chartRoas'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'ROAS 2026', data: d26.map(w => w.roas),
+          borderColor: '#e8ff47', backgroundColor: 'rgba(232,255,71,0.07)',
+          fill: true, pointRadius: 4, pointBackgroundColor: '#e8ff47', tension: 0.35 },
+        { label: 'ROAS 2025', data: m25('roas'),
+          borderColor: 'rgba(107,114,128,0.5)', backgroundColor: 'transparent',
+          borderDash: [5,3], pointRadius: 3, tension: 0.35 },
+      ],
+    },
+    options: {
+      ...sharedOpts,
+      plugins: {
+        legend: legend(), title: titlePlugin('ROAS'),
+        tooltip: { ...tooltip(), callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtX(ctx.parsed.y)}` } },
+      },
+      scales: scalesXY(v => fmtX(v)),
+    },
+  });
+
+  // 4. Tráfego Homepage
+  charts.traf = new Chart(document.getElementById('chartTraf'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Tráfego HP 2026', data: d26.map(w => w.trafHP), backgroundColor: 'rgba(6,182,212,0.7)', borderRadius: 3 },
+        { label: 'Tráfego HP 2025', data: m25('trafHP'), backgroundColor: 'rgba(107,114,128,0.35)', borderRadius: 3 },
+      ],
+    },
+    options: {
+      ...sharedOpts,
+      plugins: {
+        legend: legend(), title: titlePlugin('Tráfego Homepage'),
+        tooltip: { ...tooltip(), callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtNum(ctx.parsed.y)}` } },
+      },
+      scales: scalesXY(v => fmtNum(v)),
+    },
+  });
+
+  // 5. Taxa de Conversão
+  charts.txConv = new Chart(document.getElementById('chartTxConv'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Tx. Conversão 2026', data: d26.map(w => w.txConv),
+          borderColor: '#f97316', backgroundColor: 'rgba(249,115,22,0.07)',
+          fill: true, pointRadius: 4, pointBackgroundColor: '#f97316', tension: 0.35 },
+        { label: 'Tx. Conversão 2025', data: m25('txConv'),
+          borderColor: 'rgba(107,114,128,0.5)', backgroundColor: 'transparent',
+          borderDash: [5,3], pointRadius: 3, tension: 0.35 },
+      ],
+    },
+    options: {
+      ...sharedOpts,
+      plugins: {
+        legend: legend(), title: titlePlugin('Taxa de Conversão (%)'),
+        tooltip: { ...tooltip(), callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtPct(ctx.parsed.y)}` } },
+      },
+      scales: scalesXY(v => fmtPct(v)),
+    },
+  });
+
+  // 6. Clima — Temperatura & Precipitação
+  const tMax26  = d26.map(w => clima[`2026_${w.s}`]?.tempMax ?? null);
+  const tMin26  = d26.map(w => clima[`2026_${w.s}`]?.tempMin ?? null);
+  const prec26  = d26.map(w => clima[`2026_${w.s}`]?.precip  ?? null);
+
+  charts.clima = new Chart(document.getElementById('chartClima'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Precipitação (mm)', data: prec26,
+          backgroundColor: 'rgba(79,140,255,0.45)', borderRadius: 3, yAxisID: 'y1' },
+        { label: 'Temp. Máxima (°C)', type: 'line', data: tMax26,
+          borderColor: '#f97316', backgroundColor: 'transparent',
+          fill: false, pointRadius: 4, pointBackgroundColor: '#f97316', tension: 0.35, yAxisID: 'y' },
+        { label: 'Temp. Mínima (°C)', type: 'line', data: tMin26,
+          borderColor: 'rgba(6,182,212,0.8)', backgroundColor: 'transparent',
+          fill: false, pointRadius: 4, pointBackgroundColor: 'rgba(6,182,212,0.8)', tension: 0.35, yAxisID: 'y' },
+      ],
+    },
+    options: {
+      ...sharedOpts,
+      plugins: { legend: legend(), title: titlePlugin('Temperatura & Precipitação'), tooltip: tooltip() },
+      scales: scalesXY(v => `${v}°C`, { y2Fmt: v => `${v}mm` }),
+    },
+  });
+}
+
+// ─── Render All ───────────────────────────────────────────────────────────────
+function renderAll(weekNum) {
+  const { semanal2026, semanal2025, clima } = appData;
+  const w26   = semanal2026.find(w => w.s === weekNum);
+  const prev26 = semanal2026.find(w => w.s === weekNum - 1);
+  const w25   = semanal2025.find(w => w.s === weekNum);
+  const range = w26?.dataInit
+    ? `${fmtDate(w26.dataInit)} — ${fmtDate(w26.dataFim)}`
+    : '';
+
+  document.getElementById('weekLabel').textContent = `Semana ${weekNum}${range ? ' · ' + range : ''}`;
+
+  updateSeasonProgress(weekNum);
+  renderKPIs(w26, prev26, w25);
+  renderClima(clima[`2026_${weekNum}`], clima[`2025_${weekNum}`], range);
+  renderEpoch(weekNum);
+}
+
+// ─── Selector ─────────────────────────────────────────────────────────────────
+function populateSelector() {
+  const sel   = document.getElementById('weekSelector');
+  sel.innerHTML = '';
+  appData.semanal2026.forEach(w => {
+    const opt   = document.createElement('option');
+    opt.value   = w.s;
+    opt.textContent = w.dataInit
+      ? `Semana ${w.s}  ·  ${fmtDate(w.dataInit)}`
+      : `Semana ${w.s}`;
+    sel.appendChild(opt);
+  });
+  const weeks      = appData.semanal2026;
+  const lastActive = [...weeks].reverse().find(w => w.inv > 0 || w.nvT > 0);
+  sel.value = lastActive ? lastActive.s : (weeks[weeks.length - 1]?.s || SEASON_START);
+}
+
+function onWeekChange() {
+  const w = parseInt(document.getElementById('weekSelector').value);
+  if (!isNaN(w)) renderAll(w);
+}
+
+// ─── Load Data ────────────────────────────────────────────────────────────────
+async function loadData(forceRefresh = false) {
+  document.getElementById('loadingState').style.display  = 'flex';
+  document.getElementById('dashContent').style.display   = 'none';
+  document.getElementById('errorState').style.display    = 'none';
+
+  try {
+    const url  = '/api/dados' + (forceRefresh ? '?t=' + Date.now() : '');
+    const opts = forceRefresh ? { cache: 'no-store' } : {};
+    const res  = await fetch(url, opts);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    appData = await res.json();
+    if (!appData.semanal2026?.length) throw new Error('Sem dados 2026 disponíveis.');
+
+    // Timestamp
+    const ua = new Date(appData.updatedAt || Date.now());
+    document.getElementById('updatedAt').textContent = ua.toLocaleString('pt-PT', {
+      timeZone: 'Europe/Lisbon',
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+
+    populateSelector();
+    initCharts();
+    renderAll(parseInt(document.getElementById('weekSelector').value));
+
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('dashContent').style.display  = 'block';
+
+  } catch (err) {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('errorState').style.display   = 'block';
+    document.getElementById('errorState').innerHTML = `
+      <p>Erro ao carregar dados: ${err.message}</p>
+      <button onclick="loadData(true)" style="
+        margin-top:14px;padding:8px 18px;
+        background:var(--bg3);color:var(--accent);
+        border:1px solid var(--accent);border-radius:8px;
+        cursor:pointer;font-family:'DM Mono',monospace;font-size:12px">
+        ↻ Tentar novamente
+      </button>`;
+  }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadData();
+setInterval(() => loadData(false), 300000); // auto-refresh 5 min
+</script>
+</body>
+</html>
