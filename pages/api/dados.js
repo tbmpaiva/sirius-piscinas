@@ -3,18 +3,30 @@ import { google } from 'googleapis';
 const SHEET_ID = '1wVYr-jf-rh2UtMbW1fvciJVZQk8dqBb-TAvpaeqJYtk';
 const RANGE   = "'Visão Semanal Piscinas'!A1:AL200";
 
-// Normaliza a private key independentemente de como foi colada no Vercel
+const SEASON_2025 = { start: '2025-05-30', end: '2025-09-06' };
+const SEASON_2026 = { start: '2026-05-15', end: '2026-09-07' };
+
+// ─── Chave privada ────────────────────────────────────────────────────────────
+
 function normalizeKey(key) {
   if (!key) return '';
-  // Se já tem newlines reais (formato PEM correcto), usa directamente
   if (key.includes('\n')) return key;
-  // Se tem \n literais (dois caracteres: \ e n), converte para newlines reais
   return key.replace(/\\n/g, '\n');
 }
 
-// Datas fixas das épocas para o Open-Meteo
-const SEASON_2025 = { start: '2025-05-30', end: '2025-09-06' };
-const SEASON_2026 = { start: '2026-05-15', end: '2026-09-07' };
+// ─── Semana ISO → intervalo de datas (fallback quando a sheet não tem datas) ──
+
+function isoWeekToDateRange(year, week) {
+  const jan4  = new Date(Date.UTC(year, 0, 4));
+  const dow   = (jan4.getUTCDay() + 6) % 7; // 0=Segunda
+  const mon1  = new Date(jan4.getTime() - dow * 86400000);
+  const start = new Date(mon1.getTime() + (week - 1) * 7 * 86400000);
+  const end   = new Date(start.getTime() + 6 * 86400000);
+  return {
+    start: start.toISOString().split('T')[0],
+    end:   end.toISOString().split('T')[0],
+  };
+}
 
 // ─── Parsers ──────────────────────────────────────────────────────────────────
 
@@ -22,7 +34,6 @@ function parseEur(v) {
   if (v === null || v === undefined || v === '') return 0;
   let s = String(v).replace(/[€\s]/g, '');
   if (s.includes(',') && s.includes('.')) {
-    // formato PT: 1.234,56
     s = s.replace(/\./g, '').replace(',', '.');
   } else if (s.includes(',')) {
     s = s.replace(',', '.');
@@ -45,15 +56,11 @@ function parseDate(v) {
   if (!v) return null;
   const s = String(v).trim();
   if (!s) return null;
-  // DD/MM/YYYY
   const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
-  // YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  // YYYY/MM/DD
   const ymd = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
   if (ymd) return `${ymd[1]}-${ymd[2].padStart(2, '0')}-${ymd[3].padStart(2, '0')}`;
-  // Excel serial
   if (/^\d+$/.test(s)) {
     const n = parseInt(s);
     if (n > 40000 && n < 60000) {
@@ -135,19 +142,14 @@ export default async function handler(req, res) {
     const semanal2026 = [];
     const semanal2025 = [];
 
-    // row[0]=Semana, [1]=InvTotal, [2]=InvMeta, [3]=InvGoogle
-    // [14]=#VendasMeta, [15]=#VendasGoogle, [16]=#VendasTotais
-    // [17]=VendasMeta€, [18]=VendasGoogle€, [19]=VendasTotais€
-    // [23]=TráfegoTotal, [24]=TráfegoHomepage, [26]=ROAS
-    // [30]=TxConvTotal, [35]=Data_init, [36]=Data_fim, [37]=Year
     for (let i = 1; i < rows.length; i++) {
       const row  = rows[i];
       const year = parseInt(String(row[37] || '').trim()) || 0;
       if (year !== 2025 && year !== 2026) continue;
 
-      const inv   = parseEur(row[1]);
-      const nvT   = parseNum(row[16]);
-      const vT    = parseEur(row[19]);
+      const inv    = parseEur(row[1]);
+      const nvT    = parseNum(row[16]);
+      const vT     = parseEur(row[19]);
       const trafHP = parseNum(row[24]);
 
       const obj = {
@@ -167,7 +169,6 @@ export default async function handler(req, res) {
         dataInit: parseDate(row[35]),
         dataFim:  parseDate(row[36]),
         year,
-        // calculados
         ticketMedio: nvT > 0 ? vT / nvT : 0,
         cpb:         nvT > 0 ? inv / nvT : 0,
         txConv:      trafHP > 0 ? (nvT / trafHP) * 100 : 0,
@@ -180,22 +181,36 @@ export default async function handler(req, res) {
     semanal2026.sort((a, b) => a.s - b.s);
     semanal2025.sort((a, b) => a.s - b.s);
 
-    // Mapa de clima por chave "YEAR_semana"
+    // Mapa de clima semanal — usa datas da sheet ou calcula via semana ISO
     const clima = {};
     for (const w of semanal2026) {
-      if (w.dataInit && w.dataFim && climate2026) {
-        const c = aggregateClimaForWeek(climate2026, w.dataInit, w.dataFim);
+      const range = (w.dataInit && w.dataFim)
+        ? { start: w.dataInit, end: w.dataFim }
+        : isoWeekToDateRange(2026, w.s);
+      if (climate2026) {
+        const c = aggregateClimaForWeek(climate2026, range.start, range.end);
         if (c) clima[`2026_${w.s}`] = c;
       }
     }
     for (const w of semanal2025) {
-      if (w.dataInit && w.dataFim && climate2025) {
-        const c = aggregateClimaForWeek(climate2025, w.dataInit, w.dataFim);
+      const range = (w.dataInit && w.dataFim)
+        ? { start: w.dataInit, end: w.dataFim }
+        : isoWeekToDateRange(2025, w.s);
+      if (climate2025) {
+        const c = aggregateClimaForWeek(climate2025, range.start, range.end);
         if (c) clima[`2025_${w.s}`] = c;
       }
     }
 
-    res.json({ semanal2026, semanal2025, clima, updatedAt: new Date().toISOString() });
+    // Dados diários de clima para o gráfico (2026)
+    const climaDiario = climate2026 ? {
+      time:    climate2026.time    || [],
+      tempMax: climate2026.temperature_2m_max || [],
+      tempMin: climate2026.temperature_2m_min || [],
+      precip:  climate2026.precipitation_sum  || [],
+    } : null;
+
+    res.json({ semanal2026, semanal2025, clima, climaDiario, updatedAt: new Date().toISOString() });
 
   } catch (err) {
     console.error('[dados.js]', err);
