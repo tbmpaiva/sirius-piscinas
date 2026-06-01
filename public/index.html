@@ -277,7 +277,7 @@
         <h2>Clima — Montijo</h2>
         <span class="section-meta" id="climaLabel">—</span>
       </div>
-      <div id="climaChartWrapper" style="height:240px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px"><canvas id="chartClimaWeek"></canvas></div>
+      <div id="climaChartWrapper" style="height:270px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px"><canvas id="chartClimaWeek"></canvas></div>
     </section>
 
     <!-- Época Acumulado -->
@@ -521,12 +521,21 @@ function renderClima(weekNum, dataInit, dataFim) {
   const d26 = pad7(days26);
   const d25 = pad7(days25);
 
+  // Ícone de sol conforme temperatura máxima do dia
+  const solIcon = t => {
+    if (t === null || t === undefined) return '—';
+    if (t >= 30) return '🌞';   // radiante
+    if (t >= 25) return '☀️';   // normal
+    return '🌥️';                // frio
+  };
+
   const labels = d26.map((day, i) => {
+    const ic = solIcon(day?.tempMax ?? null);
     if (day) {
       const dt = new Date(day.date + 'T12:00:00');
-      return [DAY_PT[i], dt.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })];
+      return [ic, DAY_PT[i], dt.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })];
     }
-    return [DAY_PT[i], ''];
+    return [ic, DAY_PT[i], ''];
   });
 
   charts.climaWeek = new Chart(document.getElementById('chartClimaWeek'), {
