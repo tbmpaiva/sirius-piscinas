@@ -150,7 +150,7 @@ export default async function handler(req, res) {
       const inv    = parseEur(row[1]);
       const nvT    = parseNum(row[16]);
       const vT     = parseEur(row[19]);
-      const trafHP = parseNum(row[24]);
+      const trafHP = parseNum(row[25]);
 
       const obj = {
         s:        parseNum(row[0]),
@@ -165,9 +165,9 @@ export default async function handler(req, res) {
         vG:       parseEur(row[18]),
         trafHP,
         trafT:    parseNum(row[23]),
-        roas:     parseNum(row[26]),
-        dataInit: parseDate(row[35]),
-        dataFim:  parseDate(row[36]),
+        roas:     parseNum(row[27]),
+        dataInit: parseDate(row[36]),
+        dataFim:  parseDate(row[37]),
         year,
         ticketMedio: nvT > 0 ? vT / nvT : 0,
         cpb:         nvT > 0 ? inv / nvT : 0,
