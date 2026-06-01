@@ -700,32 +700,58 @@ function initCharts() {
     },
   });
 
-  // 6. Clima — Temperatura & Precipitação
-  const tMax26  = d26.map(w => clima[`2026_${w.s}`]?.tempMax ?? null);
-  const tMin26  = d26.map(w => clima[`2026_${w.s}`]?.tempMin ?? null);
-  const prec26  = d26.map(w => clima[`2026_${w.s}`]?.precip  ?? null);
-
-  charts.clima = new Chart(document.getElementById('chartClima'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Precipitação (mm)', data: prec26,
-          backgroundColor: 'rgba(79,140,255,0.45)', borderRadius: 3, yAxisID: 'y1' },
-        { label: 'Temp. Máxima (°C)', type: 'line', data: tMax26,
-          borderColor: '#f97316', backgroundColor: 'transparent',
-          fill: false, pointRadius: 4, pointBackgroundColor: '#f97316', tension: 0.35, yAxisID: 'y' },
-        { label: 'Temp. Mínima (°C)', type: 'line', data: tMin26,
-          borderColor: 'rgba(6,182,212,0.8)', backgroundColor: 'transparent',
-          fill: false, pointRadius: 4, pointBackgroundColor: 'rgba(6,182,212,0.8)', tension: 0.35, yAxisID: 'y' },
-      ],
-    },
-    options: {
-      ...sharedOpts,
-      plugins: { legend: legend(), title: titlePlugin('Temperatura & Precipitação'), tooltip: tooltip() },
-      scales: scalesXY(v => `${v}°C`, { y2Fmt: v => `${v}mm` }),
-    },
-  });
+  // 6. Clima — Temperatura & Precipitação (dados diários)
+  const cd = appData.climaDiario;
+  if (cd && cd.time && cd.time.length > 0) {
+    const dailyLabels = cd.time.map(d => {
+      const dt = new Date(d + 'T12:00:00');
+      return dt.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' });
+    });
+    charts.clima = new Chart(document.getElementById('chartClima'), {
+      type: 'bar',
+      data: {
+        labels: dailyLabels,
+        datasets: [
+          { label: 'Precipitação (mm)', data: cd.precip,
+            backgroundColor: 'rgba(79,140,255,0.45)', borderRadius: 2, yAxisID: 'y1' },
+          { label: 'Temp. Máxima (°C)', type: 'line', data: cd.tempMax,
+            borderColor: '#f97316', backgroundColor: 'transparent',
+            fill: false, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, yAxisID: 'y' },
+          { label: 'Temp. Mínima (°C)', type: 'line', data: cd.tempMin,
+            borderColor: 'rgba(6,182,212,0.85)', backgroundColor: 'transparent',
+            fill: false, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, yAxisID: 'y' },
+        ],
+      },
+      options: {
+        ...sharedOpts,
+        plugins: { legend: legend(), title: titlePlugin('Temperatura & Precipitação (diário)'), tooltip: tooltip() },
+        scales: {
+          x: {
+            ticks: { color: TICK, font: FONT, maxTicksLimit: 18, maxRotation: 45 },
+            grid: { color: GRID },
+          },
+          y: {
+            ticks: { color: TICK, font: FONT, callback: v => `${v}°C` },
+            grid: { color: GRID },
+            beginAtZero: false,
+          },
+          y1: {
+            position: 'right',
+            ticks: { color: TICK, font: FONT, callback: v => `${v}mm` },
+            grid: { drawOnChartArea: false },
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+  } else {
+    const canvas = document.getElementById('chartClima');
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#6b7280';
+    ctx.font = "12px 'DM Mono'";
+    ctx.textAlign = 'center';
+    ctx.fillText('Sem dados de clima disponíveis', canvas.width / 2, canvas.height / 2);
+  }
 }
 
 // ─── Render All ───────────────────────────────────────────────────────────────
