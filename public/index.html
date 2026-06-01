@@ -654,9 +654,17 @@ function initCharts() {
   charts = {};
 
   const { semanal2026, semanal2025 } = appData;
-  const d26    = semanal2026;
-  const labels = d26.map(w => `S${w.s}`);
-  const m25    = (field) => d26.map(w => semanal2025.find(x => x.s === w.s)?.[field] ?? null);
+  // Semanas activas: união das semanas com dados reais em 2026 ou 2025
+  const hasData = w => w.inv > 0 || w.nvT > 0 || w.vT > 0 || w.roas > 0 || w.trafHP > 0;
+  const activeSet = new Set([
+    ...semanal2026.filter(hasData).map(w => w.s),
+    ...semanal2025.filter(hasData).map(w => w.s),
+  ]);
+  const activeWeeks = [...activeSet].sort((a, b) => a - b);
+  const labels = activeWeeks.map(w => `S${w}`);
+  // Helpers alinhados às semanas activas (null se semana não tiver dados)
+  const get26 = field => activeWeeks.map(wNum => semanal2026.find(x => x.s === wNum)?.[field] ?? null);
+  const get25 = field => activeWeeks.map(wNum => semanal2025.find(x => x.s === wNum)?.[field] ?? null);
 
   const sharedOpts = { responsive: true, maintainAspectRatio: false };
 
@@ -666,9 +674,9 @@ function initCharts() {
     data: {
       labels,
       datasets: [
-        { label: 'Meta 2026',    data: d26.map(w => w.iM), backgroundColor: 'rgba(79,140,255,0.8)', stack: 's26', borderRadius: 3 },
-        { label: 'Google 2026',  data: d26.map(w => w.iG), backgroundColor: 'rgba(251,191,36,0.8)',  stack: 's26', borderRadius: 3 },
-        { label: 'Total 2025',   type: 'line', data: m25('inv'),
+        { label: 'Meta 2026',    data: get26('iM'), backgroundColor: 'rgba(79,140,255,0.8)', stack: 's26', borderRadius: 3 },
+        { label: 'Google 2026',  data: get26('iG'), backgroundColor: 'rgba(251,191,36,0.8)',  stack: 's26', borderRadius: 3 },
+        { label: 'Total 2025',   type: 'line', data: get25('inv'),
           borderColor: 'rgba(107,114,128,0.55)', backgroundColor: 'transparent',
           borderDash: [5,3], pointRadius: 2, tension: 0.3 },
       ],
@@ -686,9 +694,9 @@ function initCharts() {
     data: {
       labels,
       datasets: [
-        { label: '#Bilhetes 2026', data: d26.map(w => w.nvT), backgroundColor: 'rgba(232,255,71,0.7)', borderRadius: 3, yAxisID: 'y' },
-        { label: '#Bilhetes 2025', data: m25('nvT'), backgroundColor: 'rgba(107,114,128,0.4)', borderRadius: 3, yAxisID: 'y' },
-        { label: 'Receita 2026 (€)', type: 'line', data: d26.map(w => w.vT),
+        { label: '#Bilhetes 2026', data: get26('nvT'), backgroundColor: 'rgba(232,255,71,0.7)', borderRadius: 3, yAxisID: 'y' },
+        { label: '#Bilhetes 2025', data: get25('nvT'), backgroundColor: 'rgba(107,114,128,0.4)', borderRadius: 3, yAxisID: 'y' },
+        { label: 'Receita 2026 (€)', type: 'line', data: get26('vT'),
           borderColor: 'rgba(6,182,212,0.85)', backgroundColor: 'rgba(6,182,212,0.07)',
           fill: false, pointRadius: 3, tension: 0.3, yAxisID: 'y1' },
       ],
@@ -706,10 +714,10 @@ function initCharts() {
     data: {
       labels,
       datasets: [
-        { label: 'ROAS 2026', data: d26.map(w => w.roas),
+        { label: 'ROAS 2026', data: get26('roas'),
           borderColor: '#e8ff47', backgroundColor: 'rgba(232,255,71,0.07)',
           fill: true, pointRadius: 4, pointBackgroundColor: '#e8ff47', tension: 0.35 },
-        { label: 'ROAS 2025', data: m25('roas'),
+        { label: 'ROAS 2025', data: get25('roas'),
           borderColor: 'rgba(107,114,128,0.5)', backgroundColor: 'transparent',
           borderDash: [5,3], pointRadius: 3, tension: 0.35 },
       ],
@@ -730,8 +738,8 @@ function initCharts() {
     data: {
       labels,
       datasets: [
-        { label: 'Tráfego HP 2026', data: d26.map(w => w.trafHP), backgroundColor: 'rgba(6,182,212,0.7)', borderRadius: 3 },
-        { label: 'Tráfego HP 2025', data: m25('trafHP'), backgroundColor: 'rgba(107,114,128,0.35)', borderRadius: 3 },
+        { label: 'Tráfego HP 2026', data: get26('trafHP'), backgroundColor: 'rgba(6,182,212,0.7)', borderRadius: 3 },
+        { label: 'Tráfego HP 2025', data: get25('trafHP'), backgroundColor: 'rgba(107,114,128,0.35)', borderRadius: 3 },
       ],
     },
     options: {
@@ -750,10 +758,10 @@ function initCharts() {
     data: {
       labels,
       datasets: [
-        { label: 'Tx. Conversão 2026', data: d26.map(w => w.txConv),
+        { label: 'Tx. Conversão 2026', data: get26('txConv'),
           borderColor: '#f97316', backgroundColor: 'rgba(249,115,22,0.07)',
           fill: true, pointRadius: 4, pointBackgroundColor: '#f97316', tension: 0.35 },
-        { label: 'Tx. Conversão 2025', data: m25('txConv'),
+        { label: 'Tx. Conversão 2025', data: get25('txConv'),
           borderColor: 'rgba(107,114,128,0.5)', backgroundColor: 'transparent',
           borderDash: [5,3], pointRadius: 3, tension: 0.35 },
       ],
