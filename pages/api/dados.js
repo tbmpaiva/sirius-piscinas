@@ -3,6 +3,15 @@ import { google } from 'googleapis';
 const SHEET_ID = '1wVYr-jf-rh2UtMbW1fvciJVZQk8dqBb-TAvpaeqJYtk';
 const RANGE   = "'Visão Semanal Piscinas'!A1:AL200";
 
+// Normaliza a private key independentemente de como foi colada no Vercel
+function normalizeKey(key) {
+  if (!key) return '';
+  // Se já tem newlines reais (formato PEM correcto), usa directamente
+  if (key.includes('\n')) return key;
+  // Se tem \n literais (dois caracteres: \ e n), converte para newlines reais
+  return key.replace(/\\n/g, '\n');
+}
+
 // Datas fixas das épocas para o Open-Meteo
 const SEASON_2025 = { start: '2025-05-30', end: '2025-09-06' };
 const SEASON_2026 = { start: '2026-05-15', end: '2026-09-07' };
@@ -109,7 +118,7 @@ export default async function handler(req, res) {
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_SERVICE_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        private_key: normalizeKey(process.env.GOOGLE_PRIVATE_KEY),
       },
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
     });
