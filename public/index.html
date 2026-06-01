@@ -277,7 +277,7 @@
         <h2>Clima — Montijo</h2>
         <span class="section-meta" id="climaLabel">—</span>
       </div>
-      <div class="clima-grid" id="climaGrid"></div>
+      <div id="climaChartWrapper" style="height:240px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px"><canvas id="chartClimaWeek"></canvas></div>
     </section>
 
     <!-- Época Acumulado -->
@@ -474,37 +474,96 @@ function renderKPIs(w26, prev26, w25) {
 }
 
 // ─── Render Clima ─────────────────────────────────────────────────────────────
-function renderClima(c26, c25, rangeLabel) {
-  document.getElementById('climaLabel').textContent = rangeLabel || '—';
-  const el = document.getElementById('climaGrid');
-  if (!c26) {
-    el.innerHTML = `<div class="clima-card hot" style="grid-column:1/-1;align-items:center;text-align:center">
-      <span style="color:var(--muted);font-size:12px">Dados de clima não disponíveis para esta semana.</span></div>`;
-    return;
-  }
-  const cards = [
-    {
-      icon: '🌡️', label: 'Temperatura Máxima', colorClass: 'hot',
-      value: c26.tempMax, unit: '°C',
-      delta2025: c26.tempMax !== null && c25?.tempMax != null ? pctDiff(c26.tempMax, c25.tempMax) : null,
+
+// Converte semana ISO + ano para intervalo de datas (frontend, igual ao API)
+function isoWeekRange(year, week) {
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const dow  = (jan4.getUTCDay() + 6) % 7;
+  const mon1 = new Date(jan4.getTime() - dow * 86400000);
+  const s    = new Date(mon1.getTime() + (week - 1) * 7 * 86400000);
+  const e    = new Date(s.getTime() + 6 * 86400000);
+  return { start: s.toISOString().split('T')[0], end: e.toISOString().split('T')[0] };
+}
+
+// Extrai os dias de um daily em determinado intervalo
+function getDaysInRange(daily, startDate, endDate) {
+  if (!daily || !startDate || !endDate) return [];
+  const s = new Date(startDate + 'T00:00:00Z');
+  const e = new Date(endDate   + 'T23:59:59Z');
+  const r = [];
+  (daily.time || []).forEach((d, i) => {
+    const dt = new Date(d + 'T12:00:00Z');
+    if (dt >= s && dt <= e) r.push({ date: d, tempMax: daily.tempMax[i], tempMin: daily.tempMin[i], precip: daily.precip[i] });
+  });
+  return r;
+}
+
+function renderClima(weekNum, dataInit, dataFim) {
+  const rangeLabel = dataInit ? `${fmtDate(dataInit)} — ${fmtDate(dataFim)}` : `Semana ${weekNum}`;
+  document.getElementById('climaLabel').textContent = rangeLabel;
+
+  // Destruir gráfico anterior
+  if (charts.climaWeek) { charts.climaWeek.destroy(); delete charts.climaWeek; }
+
+  const cd26 = appData.climaDiario;
+  const cd25 = appData.climaDiario2025;
+
+  const range26 = (dataInit && dataFim) ? { start: dataInit, end: dataFim } : isoWeekRange(2026, weekNum);
+  const range25 = isoWeekRange(2025, weekNum);
+
+  const days26 = getDaysInRange(cd26, range26.start, range26.end);
+  const days25 = getDaysInRange(cd25, range25.start, range25.end);
+
+  const DAY_PT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+  // Garante 7 dias (preenche com null se faltar)
+  const pad7 = arr => { const a = [...(arr || [])]; while (a.length < 7) a.push(null); return a.slice(0, 7); };
+  const d26 = pad7(days26);
+  const d25 = pad7(days25);
+
+  const labels = d26.map((day, i) => {
+    if (day) {
+      const dt = new Date(day.date + 'T12:00:00');
+      return [DAY_PT[i], dt.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })];
+    }
+    return [DAY_PT[i], ''];
+  });
+
+  charts.climaWeek = new Chart(document.getElementById('chartClimaWeek'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Precip. 2026 (mm)', data: d26.map(d => d?.precip ?? null),
+          backgroundColor: 'rgba(79,140,255,0.5)', borderRadius: 3, yAxisID: 'y1' },
+        { label: 'Temp. Máx. 2026', type: 'line', data: d26.map(d => d?.tempMax ?? null),
+          borderColor: '#f97316', pointBackgroundColor: '#f97316',
+          fill: false, pointRadius: 5, tension: 0.2, yAxisID: 'y' },
+        { label: 'Temp. Mín. 2026', type: 'line', data: d26.map(d => d?.tempMin ?? null),
+          borderColor: 'rgba(6,182,212,0.9)', pointBackgroundColor: 'rgba(6,182,212,0.9)',
+          fill: false, pointRadius: 5, tension: 0.2, yAxisID: 'y' },
+        { label: 'Temp. Máx. 2025', type: 'line', data: d25.map(d => d?.tempMax ?? null),
+          borderColor: 'rgba(249,115,22,0.4)', borderDash: [5,3],
+          fill: false, pointRadius: 3, tension: 0.2, yAxisID: 'y' },
+        { label: 'Temp. Mín. 2025', type: 'line', data: d25.map(d => d?.tempMin ?? null),
+          borderColor: 'rgba(6,182,212,0.38)', borderDash: [5,3],
+          fill: false, pointRadius: 3, tension: 0.2, yAxisID: 'y' },
+      ],
     },
-    {
-      icon: '🌊', label: 'Temperatura Mínima', colorClass: 'cold',
-      value: c26.tempMin, unit: '°C',
-      delta2025: c26.tempMin !== null && c25?.tempMin != null ? pctDiff(c26.tempMin, c25.tempMin) : null,
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: legend(),
+        title: titlePlugin(`Clima Diário — Semana ${weekNum}`),
+        tooltip: tooltip(),
+      },
+      scales: {
+        x: { ticks: { color: TICK, font: FONT }, grid: { color: GRID } },
+        y: { ticks: { color: TICK, font: FONT, callback: v => `${v}°C` }, grid: { color: GRID }, beginAtZero: false },
+        y1: { position: 'right', ticks: { color: TICK, font: FONT, callback: v => `${v}mm` }, grid: { drawOnChartArea: false }, beginAtZero: true },
+      },
     },
-    {
-      icon: '☀️', label: 'Horas de Sol', colorClass: 'sun',
-      value: c26.sol, unit: 'h',
-      delta2025: c26.sol !== null && c25?.sol != null ? pctDiff(c26.sol, c25.sol) : null,
-    },
-    {
-      icon: '🌧️', label: 'Precipitação', colorClass: 'rain',
-      value: c26.precip, unit: ' mm',
-      delta2025: c26.precip !== null && c25?.precip != null ? pctDiff(c26.precip, c25.precip) : null,
-    },
-  ];
-  el.innerHTML = cards.map(climaCard).join('');
+  });
 }
 
 // ─── Render Época ─────────────────────────────────────────────────────────────
@@ -585,7 +644,7 @@ function initCharts() {
   Object.values(charts).forEach(c => c.destroy());
   charts = {};
 
-  const { semanal2026, semanal2025, clima } = appData;
+  const { semanal2026, semanal2025 } = appData;
   const d26    = semanal2026;
   const labels = d26.map(w => `S${w.s}`);
   const m25    = (field) => d26.map(w => semanal2025.find(x => x.s === w.s)?.[field] ?? null);
@@ -756,7 +815,7 @@ function initCharts() {
 
 // ─── Render All ───────────────────────────────────────────────────────────────
 function renderAll(weekNum) {
-  const { semanal2026, semanal2025, clima } = appData;
+  const { semanal2026, semanal2025 } = appData;
   const w26   = semanal2026.find(w => w.s === weekNum);
   const prev26 = semanal2026.find(w => w.s === weekNum - 1);
   const w25   = semanal2025.find(w => w.s === weekNum);
@@ -768,7 +827,7 @@ function renderAll(weekNum) {
 
   updateSeasonProgress(weekNum);
   renderKPIs(w26, prev26, w25);
-  renderClima(clima[`2026_${weekNum}`], clima[`2025_${weekNum}`], range);
+  renderClima(weekNum, w26?.dataInit, w26?.dataFim);
   renderEpoch(weekNum);
 }
 
