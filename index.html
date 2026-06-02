@@ -499,7 +499,7 @@ function getDaysInRange(daily, startDate, endDate) {
 }
 
 function renderClima(weekNum, dataInit, dataFim) {
-  const rangeLabel = dataInit ? `${fmtDate(dataInit)} — ${fmtDate(dataFim)}` : `Semana ${weekNum}`;
+  const rangeLabel = `${fmtDate(range26.start)} — ${fmtDate(range26.end)}`;
   document.getElementById('climaLabel').textContent = rangeLabel;
 
   // Destruir gráfico anterior
@@ -508,20 +508,16 @@ function renderClima(weekNum, dataInit, dataFim) {
   const cd26 = appData.climaDiario;
   const cd25 = appData.climaDiario2025;
 
-  const range26 = (dataInit && dataFim) ? { start: dataInit, end: dataFim } : isoWeekRange(2026, weekNum);
-
-  // Para 2025 usa datas reais da sheet se disponíveis, senão calcula por semana ISO
-  const w25sheet = (appData.semanal2025 || []).find(w => w.s === weekNum);
-  const range25 = (w25sheet?.dataInit && w25sheet?.dataFim)
-    ? { start: w25sheet.dataInit, end: w25sheet.dataFim }
-    : isoWeekRange(2025, weekNum);
+  // Sempre isoWeekRange — as datas da sheet têm desvio de 1 dia
+  const range26 = isoWeekRange(2026, weekNum);
+  const range25 = isoWeekRange(2025, weekNum);
 
   const days26 = getDaysInRange(cd26, range26.start, range26.end);
   const days25 = getDaysInRange(cd25, range25.start, range25.end);
 
   // Nome do dia derivado da data real (não da posição no array)
   const PT_DAYS_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  const realDayName = iso => PT_DAYS_NAMES[new Date(iso + 'T12:00:00').getUTCDay()];
+  const realDayName = iso => PT_DAYS_NAMES[new Date(iso + 'T12:00:00Z').getUTCDay()];
 
   // Garante 7 dias (preenche com null se faltar)
   const pad7 = arr => { const a = [...(arr || [])]; while (a.length < 7) a.push(null); return a.slice(0, 7); };
@@ -854,11 +850,10 @@ function renderAll(weekNum) {
   const w26   = semanal2026.find(w => w.s === weekNum);
   const prev26 = semanal2026.find(w => w.s === weekNum - 1);
   const w25   = semanal2025.find(w => w.s === weekNum);
-  const range = w26?.dataInit
-    ? `${fmtDate(w26.dataInit)} — ${fmtDate(w26.dataFim)}`
-    : '';
+  const isoRng = isoWeekRange(2026, weekNum);
+  const rangeStr = `${fmtDate(isoRng.start)} — ${fmtDate(isoRng.end)}`;
 
-  document.getElementById('weekLabel').textContent = `Semana ${weekNum}${range ? ' · ' + range : ''}`;
+  document.getElementById('weekLabel').textContent = `Semana ${weekNum} · ${rangeStr}`;
 
   updateSeasonProgress(weekNum);
   renderKPIs(w26, prev26, w25);
@@ -873,9 +868,8 @@ function populateSelector() {
   appData.semanal2026.forEach(w => {
     const opt   = document.createElement('option');
     opt.value   = w.s;
-    opt.textContent = w.dataInit
-      ? `Semana ${w.s}  ·  ${fmtDate(w.dataInit)}`
-      : `Semana ${w.s}`;
+    const wr = isoWeekRange(2026, w.s);
+    opt.textContent = `Semana ${w.s}  ·  ${fmtDate(wr.start)}`;
     sel.appendChild(opt);
   });
   const weeks      = appData.semanal2026;
