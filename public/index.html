@@ -499,6 +499,10 @@ function getDaysInRange(daily, startDate, endDate) {
 }
 
 function renderClima(weekNum, dataInit, dataFim) {
+  // Sempre isoWeekRange — as datas da sheet têm desvio de 1 dia
+  const range26 = isoWeekRange(2026, weekNum);
+  const range25 = isoWeekRange(2025, weekNum);
+
   const rangeLabel = `${fmtDate(range26.start)} — ${fmtDate(range26.end)}`;
   document.getElementById('climaLabel').textContent = rangeLabel;
 
@@ -507,10 +511,6 @@ function renderClima(weekNum, dataInit, dataFim) {
 
   const cd26 = appData.climaDiario;
   const cd25 = appData.climaDiario2025;
-
-  // Sempre isoWeekRange — as datas da sheet têm desvio de 1 dia
-  const range26 = isoWeekRange(2026, weekNum);
-  const range25 = isoWeekRange(2025, weekNum);
 
   const days26 = getDaysInRange(cd26, range26.start, range26.end);
   const days25 = getDaysInRange(cd25, range25.start, range25.end);
