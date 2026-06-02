@@ -509,12 +509,19 @@ function renderClima(weekNum, dataInit, dataFim) {
   const cd25 = appData.climaDiario2025;
 
   const range26 = (dataInit && dataFim) ? { start: dataInit, end: dataFim } : isoWeekRange(2026, weekNum);
-  const range25 = isoWeekRange(2025, weekNum);
+
+  // Para 2025 usa datas reais da sheet se disponíveis, senão calcula por semana ISO
+  const w25sheet = (appData.semanal2025 || []).find(w => w.s === weekNum);
+  const range25 = (w25sheet?.dataInit && w25sheet?.dataFim)
+    ? { start: w25sheet.dataInit, end: w25sheet.dataFim }
+    : isoWeekRange(2025, weekNum);
 
   const days26 = getDaysInRange(cd26, range26.start, range26.end);
   const days25 = getDaysInRange(cd25, range25.start, range25.end);
 
-  const DAY_PT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  // Nome do dia derivado da data real (não da posição no array)
+  const PT_DAYS_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const realDayName = iso => PT_DAYS_NAMES[new Date(iso + 'T12:00:00Z').getUTCDay()];
 
   // Garante 7 dias (preenche com null se faltar)
   const pad7 = arr => { const a = [...(arr || [])]; while (a.length < 7) a.push(null); return a.slice(0, 7); };
@@ -533,9 +540,13 @@ function renderClima(weekNum, dataInit, dataFim) {
     const ic = solIcon(day?.tempMax ?? null);
     if (day) {
       const dt = new Date(day.date + 'T12:00:00');
-      return [ic, DAY_PT[i], dt.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })];
+      return [ic, realDayName(day.date), dt.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })];
     }
-    return [ic, DAY_PT[i], ''];
+    // Fallback: calcular data a partir do início da semana + posição
+    const fb = new Date(range26.start + 'T12:00:00');
+    fb.setUTCDate(fb.getUTCDate() + i);
+    const fbIso = fb.toISOString().split('T')[0];
+    return [ic, realDayName(fbIso), fb.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })];
   });
 
   charts.climaWeek = new Chart(document.getElementById('chartClimaWeek'), {
