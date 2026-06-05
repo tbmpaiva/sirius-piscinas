@@ -81,7 +81,7 @@ async function fetchSeasonClimate(startDate, endDate) {
     const end = endDate > today ? today : endDate;
     const url =
       `https://archive-api.open-meteo.com/v1/archive` +
-      `?latitude=38.7069&longitude=-8.9754` +
+      `?latitude=38.6870&longitude=-8.6607` +
       `&start_date=${startDate}&end_date=${end}` +
       `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,sunshine_duration` +
       `&timezone=Europe%2FLisbon`;
